@@ -1,0 +1,39 @@
+name: mr_lawyer_app
+description: Mr Lawyer — dark premium landing page
+publish_to: "none"
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & fonts
+  google_fonts: ^6.1.0
+
+
+  # Animations
+  flutter_animate: 
+
+  # Open external links (mailto, browser)
+  url_launcher: ^6.2.7
+
+  # SVG icons
+  flutter_svg: ^2.0.8
+
+  # Detect when a widget enters the viewport
+  visibility_detector: ^0.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^2.0.0
+  flutter_svg: ^2.2.3
+  flutter_animate: ^4.5.0 
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/
