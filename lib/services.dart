@@ -15,6 +15,7 @@ class ServicesPage extends StatelessWidget {
         centerTitle: true,
         title: Text(
           "Our Services",
+          
           style: GoogleFonts.plusJakartaSans(
             color: Colors.white,
             fontWeight: FontWeight.w700,

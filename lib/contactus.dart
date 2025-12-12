@@ -1,8 +1,10 @@
 // lib/contactus.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 class ContactUsPage extends StatefulWidget {
   const ContactUsPage({super.key});
@@ -21,6 +23,11 @@ class _ContactUsPageState extends State<ContactUsPage> {
 
   bool _isSending = false;
 
+  // ✅ Your fixed contact details shown in the info panel
+  static const String _supportEmail = 'sudeepaddanki123@gmail.com';
+  static const String _phoneNumber = '+91 98765 43210';
+  static const String _contactName = 'My Lawyer';
+
   @override
   void dispose() {
     _nameController.dispose();
@@ -30,85 +37,182 @@ class _ContactUsPageState extends State<ContactUsPage> {
     super.dispose();
   }
 
-  // ⭐⭐⭐ EMAIL SENDING WITH RESEND API ⭐⭐⭐
- Future<void> _sendEmail() async {
-  if (!_formKey.currentState!.validate()) return;
+  // ✅ Opens dial pad with number filled
+  Future<void> _callPhone() async {
+    final phone = _phoneNumber.replaceAll(' ', '');
+    final telUri = Uri(scheme: 'tel', path: phone);
 
-  setState(() => _isSending = true);
+    // Some emulators don't have a dialer; this is the best we can do.
+    if (await canLaunchUrl(telUri)) {
+      await launchUrl(telUri, mode: LaunchMode.externalApplication);
+      return;
+    }
 
-  final name = _nameController.text.trim();
-  final email = _emailController.text.trim();
-  final subject = _subjectController.text.trim();
-  final message = _messageController.text.trim();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('No dialer app found on this device/emulator.'),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
 
-  // 🔑 Your Resend API key
-  const String apiKey = "re_hwUrfD3q_4tTSvAnF4chLy835z4zECP5p";
-
-  // 📥 Where YOU receive the enquiry
-  const String targetEmail = "sudeepaddanki123@gmail.com";
-
-  // Resend endpoint
-  final uri = Uri.https("api.resend.com", "/emails");
-
-  final jsonBody = {
-    // ❗ from = onboarding@resend.dev (Resend’s own domain, no need to verify)
-    "from": "Mr Lawyer Contact <onboarding@resend.dev>",
-    "to": [targetEmail],
-    // when you click “Reply” in Gmail, it will go to the user’s email
-    "reply_to": email,
-    "subject": "Mr Lawyer enquiry: $subject",
-    "text": """
-Name: $name
-Email: $email
-
-$message
-"""
-  };
-
-  try {
-    final response = await http.post(
-      uri,
-      headers: {
-        "Authorization": "Bearer $apiKey",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode(jsonBody),
+  // ✅ Ask Yes/No and save contact as "My Lawyer"
+  Future<void> _askSaveContact() async {
+    final yes = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(
+          'Save contact?',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700,color: Colors.white),
+        ),
+        content: Text(
+          'Do you want to save $_phoneNumber as "$_contactName"?',
+          style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('No', style: GoogleFonts.plusJakartaSans(color: Colors.white70) ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Yes', style: GoogleFonts.plusJakartaSans( color: Colors.white, fontWeight: FontWeight.w700) ),
+          ),
+        ],
+      ),
     );
 
-    if (response.statusCode == 200 || response.statusCode == 202) {
+    if (yes == true) {
+      await _saveContact();
+    }
+  }
+
+  Future<void> _saveContact() async {
+    try {
+      final allowed = await FlutterContacts.requestPermission();
+      if (!allowed) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contacts permission denied.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+        return;
+      }
+
+      final phone = _phoneNumber.replaceAll(' ', '');
+
+      // Avoid duplicates (simple check by name+number)
+      final existing = await FlutterContacts.getContacts(withProperties: true);
+      final already = existing.any((c) =>
+          c.displayName.trim().toLowerCase() == _contactName.toLowerCase() &&
+          c.phones.any((p) => p.number.replaceAll(' ', '') == phone));
+
+      if (already) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Contact already exists.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        return;
+      }
+
+      final contact = Contact()
+        ..name.first = _contactName
+        ..phones = [Phone(phone)];
+
+      await FlutterContacts.insertContact(contact);
+
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Message sent successfully.'),
+          content: Text('Saved as "My Lawyer".'),
           backgroundColor: Colors.green,
         ),
       );
-      _formKey.currentState?.reset();
-    } else {
-      debugPrint("Resend Error: ${response.statusCode} — ${response.body}");
+    } catch (e) {
+      debugPrint('Save contact error: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-              'Failed to send message (${response.statusCode}). Please try again.'),
+        const SnackBar(
+          content: Text('Could not save contact.'),
           backgroundColor: Colors.redAccent,
         ),
       );
     }
-  } catch (e) {
-    debugPrint("Resend Exception: $e");
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Could not send message. Check your connection.'),
-        backgroundColor: Colors.redAccent,
-      ),
-    );
-  } finally {
-    if (mounted) setState(() => _isSending = false);
   }
-}
 
+  // ⭐⭐⭐ SEND MESSAGE USING WEB3FORMS ⭐⭐⭐
+  Future<void> _sendEmail() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSending = true);
+
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final subject = _subjectController.text.trim();
+    final message = _messageController.text.trim();
+
+    // 🔑 Your Web3Forms access key
+    const String accessKey = "73239762-91f1-48fc-9353-2e84c7b151b8";
+
+    final uri = Uri.parse("https://api.web3forms.com/submit");
+
+    final Map<String, dynamic> body = {
+      "access_key": accessKey,
+      "name": name,
+      "email": email,
+      "replyto": email,
+      "subject": subject,
+      "message": message,
+      "from_app": "Mr Lawyer App",
+    };
+
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode(body),
+      );
+
+      final Map<String, dynamic> resData = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && (resData["success"] == true)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message sent successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _formKey.currentState?.reset();
+      } else {
+        debugPrint("Web3Forms Error: ${response.statusCode} — ${response.body}");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send message. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint("Web3Forms Exception: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not send message. Check your connection.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSending = false);
+    }
+  }
 
   // ----------------------------------------------------------------------
-  // UI BELOW — unchanged, only pasted exactly from your original code
+  // UI
   // ----------------------------------------------------------------------
 
   InputDecoration _inputDecoration(String label) {
@@ -263,21 +367,82 @@ $message
               _infoRow(
                 icon: Icons.email_outlined,
                 title: 'Email',
-                value: 'sudeepaddanki123@gmail.com',
+                value: _supportEmail,
               ),
+              const SizedBox(height: 12),
+
+              // ✅ Phone as a button (Number + "Save contact")
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: _askSaveContact,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.white12),
+                    backgroundColor: const Color(0xFF151523),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.phone_in_talk_outlined,
+                          color: Color(0xFFB8860B), size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '$_phoneNumber  •  Save contact',
+                          style: GoogleFonts.plusJakartaSans(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      const Icon(Icons.person_add_alt_1,
+                          color: Colors.white70, size: 18),
+                    ],
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 10),
-              _infoRow(
-                icon: Icons.phone_in_talk_outlined,
-                title: 'Phone',
-                value: '+91 98765 43210',
+
+              // ✅ Call button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _callPhone,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFB8860B),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.call, color: Colors.black87, size: 18),
+                  label: Text(
+                    'Call now',
+                    style: GoogleFonts.plusJakartaSans(
+                      color: Colors.black87,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ),
+
               const SizedBox(height: 14),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  _pillChip(
-                      Icons.schedule, 'Typical response: 1–2 business days'),
+                  _pillChip(Icons.schedule, 'Typical response: 1–2 business days'),
                   _pillChip(Icons.lock_outline, 'End-to-end confidential'),
                 ],
               ),
@@ -369,12 +534,8 @@ $message
             controller: _nameController,
             style: const TextStyle(color: Colors.white),
             decoration: _inputDecoration('Full name'),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return 'Please enter your name';
-              }
-              return null;
-            },
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Please enter your name' : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -383,14 +544,9 @@ $message
             decoration: _inputDecoration('Email address'),
             keyboardType: TextInputType.emailAddress,
             validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return 'Please enter your email';
-              }
-              final emailRegex =
-                  RegExp(r'^[^@]+@[^@]+\.[^@]+');
-              if (!emailRegex.hasMatch(v.trim())) {
-                return 'Please enter a valid email';
-              }
+              if (v == null || v.trim().isEmpty) return 'Please enter your email';
+              final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+              if (!emailRegex.hasMatch(v.trim())) return 'Please enter a valid email';
               return null;
             },
           ),
@@ -399,12 +555,9 @@ $message
             controller: _subjectController,
             style: const TextStyle(color: Colors.white),
             decoration: _inputDecoration('Subject'),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return 'Please enter a subject';
-              }
-              return null;
-            },
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? 'Please enter a subject'
+                : null,
           ),
           const SizedBox(height: 14),
           TextFormField(
@@ -413,12 +566,9 @@ $message
             decoration: _inputDecoration('How can we help?'),
             minLines: 4,
             maxLines: 6,
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return 'Please enter your message';
-              }
-              return null;
-            },
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? 'Please enter your message'
+                : null,
           ),
           const SizedBox(height: 20),
           Align(

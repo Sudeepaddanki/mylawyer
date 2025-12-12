@@ -58,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               const SizedBox(height: 22),
               Text(
-                'Mr Lawyer',
+                'My Lawyer',
                 style: GoogleFonts.plusJakartaSans(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,

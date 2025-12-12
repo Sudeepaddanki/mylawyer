@@ -11,6 +11,7 @@ dependencies:
 
   # UI & fonts
   google_fonts: ^6.1.0
+  flutter_contacts: ^1.1.9+2
 
 
   # Animations
@@ -24,6 +25,14 @@ dependencies:
 
   # Detect when a widget enters the viewport
   visibility_detector: ^0.3.0
+
+  # HTTP client for Web3Forms submission
+  http: ^1.2.2
+
+  # Save contact details to device address book
+
+  # Request runtime permissions (contacts)
+  permission_handler: ^11.3.1
 
 dev_dependencies:
   flutter_test:

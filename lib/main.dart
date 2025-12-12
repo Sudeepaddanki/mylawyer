@@ -7,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 import 'explore.dart';
+import 'aboutus.dart';
 import 'contactus.dart'; // 🔹 Contact page import
 import 'services.dart';
 import 'splash_screen.dart';
@@ -76,6 +77,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  void _openAbout() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => const AboutUsPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -113,6 +120,7 @@ class _HomePageState extends State<HomePage> {
       drawer: _MainDrawer(
         onExplore: _openExplore,
         onServices: _openServices,
+        onAbout: _openAbout,
         onContact: _openContact, // 🔹 Contact from drawer
       ),
       body: CustomScrollView(
@@ -1165,11 +1173,13 @@ class _FooterSection extends StatelessWidget {
 class _MainDrawer extends StatelessWidget {
   final VoidCallback onExplore;
   final VoidCallback onServices;
+  final VoidCallback onAbout;
   final VoidCallback onContact; // 🔹 new
 
   const _MainDrawer({
     required this.onExplore,
     required this.onServices,
+    required this.onAbout,
     required this.onContact,
   });
 
@@ -1228,6 +1238,14 @@ class _MainDrawer extends StatelessWidget {
               onServices();
             },
           ),
+          _DrawerTile(
+            icon: Icons.info_outline,
+            title: 'About Us',
+            onTap: () {
+              Navigator.pop(context);
+              onAbout();
+            },
+          ),
           const Divider(color: Colors.white12),
           _DrawerTile(
             icon: Icons.phone,
@@ -1276,3 +1294,6 @@ class _DrawerTile extends StatelessWidget {
     );
   }
 }
+
+
+
