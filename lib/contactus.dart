@@ -18,20 +18,22 @@ class _ContactUsPageState extends State<ContactUsPage> {
 
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+  final _phoneController = TextEditingController(); // ✅ NEW
   final _subjectController = TextEditingController();
   final _messageController = TextEditingController();
 
   bool _isSending = false;
 
   // ✅ Your fixed contact details shown in the info panel
-  static const String _supportEmail = 'sudeepaddanki123@gmail.com';
-  static const String _phoneNumber = '+91 98765 43210';
+  static const String _supportEmail = 'sudeep.herin@gmail.com';
+  static const String _phoneNumber = '+91 93471 37827';
   static const String _contactName = 'My Lawyer';
 
   @override
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
+    _phoneController.dispose(); // ✅ NEW
     _subjectController.dispose();
     _messageController.dispose();
     super.dispose();
@@ -42,7 +44,6 @@ class _ContactUsPageState extends State<ContactUsPage> {
     final phone = _phoneNumber.replaceAll(' ', '');
     final telUri = Uri(scheme: 'tel', path: phone);
 
-    // Some emulators don't have a dialer; this is the best we can do.
     if (await canLaunchUrl(telUri)) {
       await launchUrl(telUri, mode: LaunchMode.externalApplication);
       return;
@@ -62,9 +63,13 @@ class _ContactUsPageState extends State<ContactUsPage> {
     final yes = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0F1A),
         title: Text(
           'Save contact?',
-          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700,color: Colors.white),
+          style: GoogleFonts.plusJakartaSans(
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         content: Text(
           'Do you want to save $_phoneNumber as "$_contactName"?',
@@ -73,11 +78,23 @@ class _ContactUsPageState extends State<ContactUsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('No', style: GoogleFonts.plusJakartaSans(color: Colors.white70) ),
+            child: Text(
+              'No',
+              style: GoogleFonts.plusJakartaSans(color: Colors.white70),
+            ),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFB8860B),
+              foregroundColor: Colors.black87,
+            ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Yes', style: GoogleFonts.plusJakartaSans( color: Colors.white, fontWeight: FontWeight.w700) ),
+            child: Text(
+              'Yes',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
         ],
       ),
@@ -154,12 +171,11 @@ class _ContactUsPageState extends State<ContactUsPage> {
 
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
+    final phone = _phoneController.text.trim(); // ✅ NEW
     final subject = _subjectController.text.trim();
     final message = _messageController.text.trim();
 
-    // 🔑 Your Web3Forms access key
     const String accessKey = "73239762-91f1-48fc-9353-2e84c7b151b8";
-
     final uri = Uri.parse("https://api.web3forms.com/submit");
 
     final Map<String, dynamic> body = {
@@ -168,8 +184,12 @@ class _ContactUsPageState extends State<ContactUsPage> {
       "email": email,
       "replyto": email,
       "subject": subject,
-      "message": message,
-      "from_app": "Mr Lawyer App",
+
+      // ✅ Put phone in the message + also as an extra field
+      "phone": phone,
+      "message": "Phone: $phone\n\n$message",
+
+      "from": "Mr Lawyer App",
     };
 
     try {
@@ -189,6 +209,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
           ),
         );
         _formKey.currentState?.reset();
+        _phoneController.clear(); // ✅ NEW
       } else {
         debugPrint("Web3Forms Error: ${response.statusCode} — ${response.body}");
         ScaffoldMessenger.of(context).showSnackBar(
@@ -530,6 +551,7 @@ class _ContactUsPageState extends State<ContactUsPage> {
             ),
           ),
           const SizedBox(height: 16),
+
           TextFormField(
             controller: _nameController,
             style: const TextStyle(color: Colors.white),
@@ -538,6 +560,22 @@ class _ContactUsPageState extends State<ContactUsPage> {
                 (v == null || v.trim().isEmpty) ? 'Please enter your name' : null,
           ),
           const SizedBox(height: 14),
+
+          // ✅ NEW: Phone field
+          TextFormField(
+            controller: _phoneController,
+            style: const TextStyle(color: Colors.white),
+            decoration: _inputDecoration('Phone number'),
+            keyboardType: TextInputType.phone,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Please enter your phone';
+              final digits = v.replaceAll(RegExp(r'\D'), '');
+              if (digits.length < 8) return 'Please enter a valid phone number';
+              return null;
+            },
+          ),
+          const SizedBox(height: 14),
+
           TextFormField(
             controller: _emailController,
             style: const TextStyle(color: Colors.white),
@@ -551,26 +589,27 @@ class _ContactUsPageState extends State<ContactUsPage> {
             },
           ),
           const SizedBox(height: 14),
+
           TextFormField(
             controller: _subjectController,
             style: const TextStyle(color: Colors.white),
             decoration: _inputDecoration('Subject'),
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? 'Please enter a subject'
-                : null,
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Please enter a subject' : null,
           ),
           const SizedBox(height: 14),
+
           TextFormField(
             controller: _messageController,
             style: const TextStyle(color: Colors.white),
             decoration: _inputDecoration('How can we help?'),
             minLines: 4,
             maxLines: 6,
-            validator: (v) => (v == null || v.trim().isEmpty)
-                ? 'Please enter your message'
-                : null,
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Please enter your message' : null,
           ),
           const SizedBox(height: 20),
+
           Align(
             alignment: Alignment.centerRight,
             child: SizedBox(
